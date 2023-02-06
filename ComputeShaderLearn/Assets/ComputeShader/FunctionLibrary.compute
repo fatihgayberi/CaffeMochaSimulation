@@ -1,0 +1,55 @@
+﻿#define PI 3.14159265358979323846
+
+#pragma kernel FunctionKernel
+
+RWStructuredBuffer<float3> _Positions;
+
+#if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+    StructuredBuffer<float3> _Positions;
+#endif
+
+float _Step, _Time;
+uint _Resolution;
+
+void ConfigureProcedural ()
+{
+#if defined(UNITY_PROCEDURAL_INSTANCING_ENABLED)
+    float3 position = _Positions[unity_InstanceID];
+        
+    unity_ObjectToWorld = 0.0;
+    unity_ObjectToWorld._m03_m13_m23_m33 = float4(position, 1.0);
+    unity_ObjectToWorld._m00_m11_m22 = _Step;
+#endif
+}
+
+
+float2 GetUV(uint3 id)
+{
+    return (id.xy + 0.5) * _Step - 1.0;
+}
+
+void SetPosition (uint3 id, float3 position)
+{
+    if (id.x < _Resolution && id.y < _Resolution)
+    {
+        _Positions[id.x + id.y * _Resolution] = position;
+    }
+}
+
+float3 Wave(float u, float v, float t)
+{
+    float3 p;
+    
+    p.x = u;
+    p.y = sin(PI * (u + v + t));
+    p.z = t;
+
+    return p;
+}
+
+[numthreads(8,8,1)]
+void FunctionKernel(uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = GetUV(id);
+    SetPosition(id, Wave(uv.x, uv.y, _Time));
+}
